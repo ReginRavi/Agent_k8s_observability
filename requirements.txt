@@ -1,0 +1,16 @@
+# Core web framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+
+# HTTP client
+httpx==0.28.1
+
+# Kubernetes client
+kubernetes==31.0.0
+
+# Logging and utilities
+python-dotenv==1.0.1
+
+# Optional: For production deployments
+gunicorn==23.0.0

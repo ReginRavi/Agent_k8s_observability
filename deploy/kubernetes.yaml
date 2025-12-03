@@ -1,0 +1,193 @@
+---
+# ServiceAccount for the agent
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: observability-agent
+  namespace: default
+
+---
+# ClusterRole with permissions to read K8s resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: observability-agent
+rules:
+  # Pods
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  
+  # Events
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+  
+  # Nodes
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+  
+  # Namespaces
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
+  
+  # Deployments, StatefulSets, DaemonSets
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list"]
+  
+  # Jobs
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list"]
+
+---
+# ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: observability-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: observability-agent
+subjects:
+  - kind: ServiceAccount
+    name: observability-agent
+    namespace: default
+
+---
+# Secret for Gemini API key
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gemini-secret
+  namespace: default
+type: Opaque
+stringData:
+  api-key: "YOUR_GEMINI_API_KEY_HERE"
+
+---
+# ConfigMap for agent configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: observability-agent-config
+  namespace: default
+data:
+  PROMETHEUS_URL: "http://prometheus-server:9090"
+  LOKI_URL: "http://loki:3100"
+  ALERTMANAGER_URL: "http://alertmanager:9093"
+  GRAFANA_URL: "http://grafana:3000"
+  IN_CLUSTER: "true"
+  AGENT_LOG_LEVEL: "INFO"
+  DEFAULT_LOOKBACK_MINUTES: "15"
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: observability-agent
+  namespace: default
+  labels:
+    app: observability-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: observability-agent
+  template:
+    metadata:
+      labels:
+        app: observability-agent
+    spec:
+      serviceAccountName: observability-agent
+      containers:
+        - name: agent
+          image: k8s-observability-agent:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gemini-secret
+                  key: api-key
+            - name: PROMETHEUS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: observability-agent-config
+                  key: PROMETHEUS_URL
+            - name: LOKI_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: observability-agent-config
+                  key: LOKI_URL
+            - name: ALERTMANAGER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: observability-agent-config
+                  key: ALERTMANAGER_URL
+            - name: GRAFANA_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: observability-agent-config
+                  key: GRAFANA_URL
+            - name: IN_CLUSTER
+              valueFrom:
+                configMapKeyRef:
+                  name: observability-agent-config
+                  key: IN_CLUSTER
+            - name: AGENT_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: observability-agent-config
+                  key: AGENT_LOG_LEVEL
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: observability-agent
+  namespace: default
+  labels:
+    app: observability-agent
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: observability-agent

@@ -39,7 +39,6 @@ This agent sits on top of your observability platform (Prometheus, Loki, Alertma
 - 🔍 **Multi-Source Integration**: Queries Prometheus, Kubernetes API, Loki, and Alertmanager
 - 🎯 **Context-Aware**: Understands Kubernetes-specific concepts (pods, namespaces, events, etc.)
 
-![Architecture](images/Architecture.png)
 
 ## Architecture
 
@@ -117,7 +116,7 @@ k8s-observability-agent/
 └── start.sh                      # Quick start script
 ```
 
-![Agent flow](images/AgenFlow.png)
+![Agent_Flow](images/AgentFlow.png)
 
 
 

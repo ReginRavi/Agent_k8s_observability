@@ -3,6 +3,9 @@
 A Kubernetes-aware observability AI agent that uses Gemini 2.5 flash to provide intelligent insights into system health, incidents, and performance issues.
 
 ## 🚀 Quick Start
+## Demo
+
+![Demo](images/Demo.png)
 
 **Step 1: Validate Your Environment**
 Ensure all required services (Prometheus, Loki, etc.) are running and accessible:
